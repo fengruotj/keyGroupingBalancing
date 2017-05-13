@@ -1,5 +1,7 @@
 package com.basic.storm.benchmark;
 
+import com.basic.storm.model.HotKeyMapSize;
+import com.basic.storm.util.DataBaseUtil;
 import com.basic.storm.util.PredictorHotKeyUtilBenchMark;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -7,7 +9,12 @@ import org.apache.commons.logging.LogFactory;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.Timestamp;
+import java.util.ArrayDeque;
+import java.util.Queue;
+import java.util.Timer;
 
 /**
  * locate com.basic.storm.benchmark
@@ -17,12 +24,16 @@ import java.sql.Timestamp;
 public class PredictHotKeyUpdateTimeBenchMark {
     private static final Log LOG = LogFactory.getLog(PredictHotKeyUpdateTimeBenchMark.class);
     private static PredictorHotKeyUtilBenchMark predictorHotKeyUtil=PredictorHotKeyUtilBenchMark.getPredictorHotKeyUtilInstance();
+    private static DataBaseUtil dataBaseUtil=DataBaseUtil.getDataBaseUtilInstance();
+    private static Queue<HotKeyMapSize> hotKeyMapSizes=new ArrayDeque<>();
 
     public static void main(String[] args) throws Exception {
 //        String inputFile = "/user/root/flinkwordcount/input/resultTweets.txt";
 //        FileSystem fs = HdfsOperationUtil.getFs();
 //        FSDataInputStream dataInputStream = fs.open(new Path(inputFile));
 //        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(dataInputStream));
+
+        Timer timer=new Timer();
 
         FileInputStream dataInputStream=new FileInputStream("D:\\dataresult\\resultTweets.txt");
         BufferedReader bufferedReader=new BufferedReader(new InputStreamReader(dataInputStream));
@@ -31,6 +42,15 @@ public class PredictHotKeyUpdateTimeBenchMark {
         predictorHotKeyUtil.setStartTimeSystemTime(startTimeSystemTime);
         long endTimeSystemTime = 0L;
         long tupleCount = 0L;
+
+//        //设置计时器每500ms计算时间
+//        timer.scheduleAtFixedRate(new TimerTask() {
+//            public void run() {
+//                int size = predictorHotKeyUtil.getPredictHotKeyMap().size();
+//                int length = predictorHotKeyUtil.getPredictHotKeyMap().getLength();
+//                hotKeyMapSizes.add(new HotKeyMapSize(size,length));
+//            }
+//        }, 1,1000);// 设定指定的时间time,此处为1000毫秒
 
         String text = null;
         while ((text = bufferedReader.readLine()) != null) {
@@ -46,6 +66,19 @@ public class PredictHotKeyUpdateTimeBenchMark {
 
         predictorHotKeyUtil.outputKeyUpdateTimesQueue();
         LOG.info("ExecutorService run over");
+
+        String sql="insert INTO t_predicthotkey(keysize,tablelength) VALUES(?,?)";
+        Connection connection = dataBaseUtil.getConnection();
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        while (!hotKeyMapSizes.isEmpty()){
+            HotKeyMapSize poll = hotKeyMapSizes.poll();
+            preparedStatement.setInt(1,poll.getKeysize());
+            preparedStatement.setInt(2,poll.getTablelength());
+            preparedStatement.executeUpdate();
+        }
+        connection.commit();
+        preparedStatement.close();
+        LOG.info("DataBaseService run over");
         System.exit(0);
     }
 }

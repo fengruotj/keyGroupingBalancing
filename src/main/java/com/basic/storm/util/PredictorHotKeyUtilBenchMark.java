@@ -28,11 +28,14 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
 
     private SynopsisHashMap<String, BitSet> predictHotKeyMap = new SynopsisHashMap<String, BitSet>();
 
+    private Random random=new Random();
+
+    private Timer timer=new Timer();
     /**
      * 线程池
      * 创建一个可缓存线程池，如果线程池长度超过处理需要，可灵活回收空闲线程，若无可回收，则新建线程。
      */
-    ExecutorService executor = Executors.newCachedThreadPool();
+    ExecutorService executor = Executors.newFixedThreadPool(20);
 
     private long dumpKeyCount=0L;
     private static final Log LOG = LogFactory.getLog(PredictorHotKeyUtilBenchMark.class);
@@ -72,7 +75,7 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
     }
 
     /**
-     * 热词表中热词衰减
+     * 热词表中热词衰减所有
      */
     public void SynopsisHashMapAllDump(DumpRemoveHandler dumpRemoveHandler) {
         int dumpsize = (int) (1 / Threshold_p);
@@ -106,14 +109,20 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
     }
 
     /**
-     * 热词表中热词衰减
+     * 热词表中热词随机衰减
      */
-    public void SynopsisHashMapDump2(DumpRemoveHandler dumpRemoveHandler) {
+    public void SynopsisHashMapRandomDump(DumpRemoveHandler dumpRemoveHandler) {
         int size=predictHotKeyMap.size;
-        for(int i = 1; i<size*Threshold_p; i++){
-            String nohot = predictHotKeyMap.getrandomkey();
-            if(nohot != null){
-                BitSet bitm = (BitSet) predictHotKeyMap.get(nohot);
+        long startTimeSystemTime=System.currentTimeMillis();
+        Iterator<Map.Entry<String, BitSet>> iterator = predictHotKeyMap.newEntryIterator();
+        while (iterator.hasNext()){
+            Map.Entry<String, BitSet> next = iterator.next();
+            if (random.nextDouble()> Threshold_p){
+                continue;
+            }
+            BitSet bitm = next.getValue();
+            String key = next.getKey();
+            if(key!=null){
                 long[] lo = bitm.toLongArray();
                 if(lo.length > 0){
                     for(int j=0;j<lo.length - 1;j++){
@@ -123,15 +132,15 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
                     lo[lo.length-1] = lo[lo.length-1] >>> 1;
                 }
                 bitm = BitSet.valueOf(lo);
-                if(bitm.isEmpty())
-                {
-                    dumpRemoveHandler.dumpRemove(nohot);
-                    predictHotKeyMap.remove(nohot);
+                if (bitm.isEmpty()) {
+                    iterator.remove();
+                    dumpRemoveHandler.dumpRemove(key);
                 }else
-                    predictHotKeyMap.put(nohot,bitm);
-
+                    next.setValue(bitm);
             }
         }
+        long endTimeSystemTime=System.currentTimeMillis();
+        long taotalTime=endTimeSystemTime-startTimeSystemTime;
     }
 
     /**
@@ -256,7 +265,17 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
 
         if(count>=Threshold_r){
             TestPredictorHotKeyUpdateTime(key,count - Threshold_r);
-            SynopsisHashMapAllDump(new DumpRemoveHandler() {
+//            SynopsisHashMapAllDump(new DumpRemoveHandler() {
+//                @Override
+//                public void dumpRemove(String key) {
+//                    Key nohotkey = new Key(key.getBytes());
+//                    if(cbf.membershipTest(nohotkey))
+//                        cbf.delete(nohotkey);
+//                }
+//            });
+
+
+            SynopsisHashMapRandomDump(new DumpRemoveHandler() {
                 @Override
                 public void dumpRemove(String key) {
                     Key nohotkey = new Key(key.getBytes());
@@ -265,15 +284,6 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
                 }
             });
 
-
-//            SynopsisHashMapDump2(new DumpRemoveHandler() {
-//                @Override
-//                public void dumpRemove(String key) {
-//                    Key nohotkey = new Key(key.getBytes());
-//                    if(cbf.membershipTest(nohotkey))
-//                        cbf.delete(nohotkey);
-//                }
-//            });
         }
     }
 

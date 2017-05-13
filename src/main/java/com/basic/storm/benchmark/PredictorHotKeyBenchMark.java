@@ -1,18 +1,19 @@
 package com.basic.storm.benchmark;
 
+import com.basic.storm.model.HotKeyMapSize;
 import com.basic.storm.util.DataBaseUtil;
-import com.basic.storm.util.HdfsOperationUtil;
 import com.basic.storm.util.PredictorHotKeyUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.InputStreamReader;
-import java.sql.SQLException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.Timestamp;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -25,10 +26,14 @@ public class PredictorHotKeyBenchMark {
     private static final Log LOG = LogFactory.getLog(PredictorHotKeyBenchMark.class);
     private static PredictorHotKeyUtil predictorHotKeyUtil=PredictorHotKeyUtil.getPredictorHotKeyUtilInstance();
     private static DataBaseUtil dataBaseUtil=DataBaseUtil.getDataBaseUtilInstance();
+    private static Queue<HotKeyMapSize> hotKeyMapSizes=new ArrayDeque<>();
+
     public static void main(String[] args) throws Exception {
-        String inputFile="/user/root/flinkwordcount/input/resultTweets.txt";
-        FileSystem fs = HdfsOperationUtil.getFs();
-        FSDataInputStream dataInputStream = fs.open(new Path(inputFile));
+//        String inputFile="/user/root/flinkwordcount/input/resultTweets.txt";
+//        FileSystem fs = HdfsOperationUtil.getFs();
+//        FSDataInputStream dataInputStream = fs.open(new Path(inputFile));
+//        BufferedReader bufferedReader=new BufferedReader(new InputStreamReader(dataInputStream));
+        FileInputStream dataInputStream=new FileInputStream("D:\\dataresult\\resultTweets.txt");
         BufferedReader bufferedReader=new BufferedReader(new InputStreamReader(dataInputStream));
 
         Timer timer=new Timer();
@@ -39,19 +44,14 @@ public class PredictorHotKeyBenchMark {
         //FileUtil.deleteFile("/root/TJ/keyTimeModel.txt");
         //FileUtil.createFile("/root/TJ/keyTimeModel.txt");//如果不存在文件名就新建一个文件
 
-        //设置计时器没1s计算时间
+        //设置计时器每500ms计算时间
         timer.scheduleAtFixedRate(new TimerTask() {
             public void run() {
                 int size = predictorHotKeyUtil.getPredictHotKeyMap().size();
                 int length = predictorHotKeyUtil.getPredictHotKeyMap().getLength();
-                String sql="insert INTO t_predicthotkey(keysize,tablelength) VALUES(?,?)";
-                try {
-                    dataBaseUtil.doInsert(sql,size,length);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
+                hotKeyMapSizes.add(new HotKeyMapSize(size,length));
             }
-        }, 1,500);// 设定指定的时间time,此处为1000毫秒
+        }, 1,1000);// 设定指定的时间time,此处为1000毫秒
 
         String text=null;
         while ((text=bufferedReader.readLine())!=null){
@@ -68,6 +68,18 @@ public class PredictorHotKeyBenchMark {
         //double totalDelayTime = predictorHotKeyUtil.getTotalDelayTime();
         //long totalKeyCount=predictorHotKeyUtil.getTotalKeyCount();
         //LOG.info("TotalDelayTime: "+totalDelayTime+" avg: "+totalDelayTime/totalKeyCount);
+
+        String sql="insert INTO t_predicthotkey(keysize,tablelength) VALUES(?,?)";
+        Connection connection = dataBaseUtil.getConnection();
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        while (!hotKeyMapSizes.isEmpty()){
+            HotKeyMapSize poll = hotKeyMapSizes.poll();
+            preparedStatement.setInt(1,poll.getKeysize());
+            preparedStatement.setInt(2,poll.getTablelength());
+            preparedStatement.executeUpdate();
+        }
+        preparedStatement.close();
+        LOG.info("DataBaseService run over");
         System.exit(0);
     }
 }

@@ -19,7 +19,6 @@ public class SynopsisHashMap<K,V>
     int threshold;
     final float loadFactor;
     transient volatile int modCount;
-
     public SynopsisHashMap(int initialCapacity, float loadFactor) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal initial capacity: " +
@@ -404,7 +403,7 @@ public class SynopsisHashMap<K,V>
         size++;
     }
 
-    private abstract class HashIterator<E> implements Iterator<E> {
+    public abstract class HashIterator<E> implements Iterator<E> {
         Entry<K,V> next;        // next entry to return
         int expectedModCount;   // For fast-fail
         int index;              // current slot
