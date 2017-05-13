@@ -74,17 +74,46 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
     /**
      * 热词表中热词衰减
      */
-    public void SynopsisHashMapDump(DumpRemoveHandler dumpRemoveHandler) {
+    public void SynopsisHashMapAllDump(DumpRemoveHandler dumpRemoveHandler) {
+        int dumpsize = (int) (1 / Threshold_p);
+        dumpKeyCount++;
+        if (dumpKeyCount == dumpsize) {
+            //dump 衰减所有key
+            Iterator<Map.Entry<String, BitSet>> iterator = predictHotKeyMap.newEntryIterator();
+            while (iterator.hasNext()){
+                Map.Entry<String, BitSet> next = iterator.next();
+                BitSet bitm = next.getValue();
+                String key = next.getKey();
+                if(key!=null){
+                    long[] lo = bitm.toLongArray();
+                    if(lo.length > 0){
+                        for(int j=0;j<lo.length - 1;j++){
+                            lo[j] = lo[j] >>> 1;
+                            lo[j] = lo[j] | (lo[j+1] << 63);
+                        }
+                        lo[lo.length-1] = lo[lo.length-1] >>> 1;
+                    }
+                    bitm = BitSet.valueOf(lo);
+                    if (bitm.isEmpty()) {
+                        iterator.remove();
+                        dumpRemoveHandler.dumpRemove(key);
+                    }else
+                        next.setValue(bitm);
+                }
+            }
+            dumpKeyCount = 0;
+        }
+    }
 
-//        SynopsisHashMapDumpTask synopsisHashMapDumpTask=new SynopsisHashMapDumpTask(predictHotKeyMap);
-//        executor.execute(synopsisHashMapDumpTask);
-
-        Iterator<Map.Entry<String, BitSet>> iterator = predictHotKeyMap.newEntryIterator();
-        while (iterator.hasNext()){
-            Map.Entry<String, BitSet> next = iterator.next();
-            BitSet bitm = next.getValue();
-            String key = next.getKey();
-            if(key!=null){
+    /**
+     * 热词表中热词衰减
+     */
+    public void SynopsisHashMapDump2(DumpRemoveHandler dumpRemoveHandler) {
+        int size=predictHotKeyMap.size;
+        for(int i = 1; i<size*Threshold_p; i++){
+            String nohot = predictHotKeyMap.getrandomkey();
+            if(nohot != null){
+                BitSet bitm = (BitSet) predictHotKeyMap.get(nohot);
                 long[] lo = bitm.toLongArray();
                 if(lo.length > 0){
                     for(int j=0;j<lo.length - 1;j++){
@@ -94,11 +123,13 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
                     lo[lo.length-1] = lo[lo.length-1] >>> 1;
                 }
                 bitm = BitSet.valueOf(lo);
-                if (bitm.isEmpty()) {
-                    iterator.remove();
-                    dumpRemoveHandler.dumpRemove(key);
+                if(bitm.isEmpty())
+                {
+                    dumpRemoveHandler.dumpRemove(nohot);
+                    predictHotKeyMap.remove(nohot);
                 }else
-                    next.setValue(bitm);
+                    predictHotKeyMap.put(nohot,bitm);
+
             }
         }
     }
@@ -174,17 +205,12 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
         if (count >= Threshold_r) {
 
             PredictorHotKey(key, count - Threshold_r);
-            dumpKeyCount++;
-            if (dumpKeyCount == dumpsize) {
-                //dump
-                SynopsisHashMapDump(new DumpRemoveHandler() {
-                    @Override
-                    public void dumpRemove(String key) {
+            SynopsisHashMapAllDump(new DumpRemoveHandler() {
+                @Override
+                public void dumpRemove(String key) {
 
-                    }
-                });
-                dumpKeyCount = 0;
-            }
+                }
+            });
         }
     }
 
@@ -202,18 +228,13 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
 
         if(count>=Threshold_r){
            PredictorHotKey(key,count - Threshold_r);
-            dumpKeyCount++;
-            //totalKeyCount++;
-            if(dumpKeyCount==dumpsize){
-                //dump
-                SynopsisHashMapDump(new DumpRemoveHandler() {
-                    @Override
-                    public void dumpRemove(String key) {
 
-                    }
-                });
-                dumpKeyCount=0;
-            }
+            SynopsisHashMapAllDump(new DumpRemoveHandler() {
+                @Override
+                public void dumpRemove(String key) {
+
+                }
+            });
 
             //keyTimeModel.setEndTimeSystemTime(System.nanoTime());
             //double delayTime=keyTimeModel.getdelayTime();
@@ -235,24 +256,24 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
 
         if(count>=Threshold_r){
             TestPredictorHotKeyUpdateTime(key,count - Threshold_r);
-            dumpKeyCount++;
-            //totalKeyCount++;
-            if(dumpKeyCount==dumpsize){
-                //dump
-                //long startTime=System.currentTimeMillis();
-                SynopsisHashMapDump(new DumpRemoveHandler() {
-                    @Override
-                    public void dumpRemove(String key) {
-                        Key nohotkey = new Key(key.getBytes());
-                        if(cbf.membershipTest(nohotkey))
-                            cbf.delete(nohotkey);
-                    }
-                });
-                //long endTime=System.currentTimeMillis();
-                //long totalTime=endTime-startTime;
-                dumpKeyCount=0;
-            }
+            SynopsisHashMapAllDump(new DumpRemoveHandler() {
+                @Override
+                public void dumpRemove(String key) {
+                    Key nohotkey = new Key(key.getBytes());
+                    if(cbf.membershipTest(nohotkey))
+                        cbf.delete(nohotkey);
+                }
+            });
 
+
+//            SynopsisHashMapDump2(new DumpRemoveHandler() {
+//                @Override
+//                public void dumpRemove(String key) {
+//                    Key nohotkey = new Key(key.getBytes());
+//                    if(cbf.membershipTest(nohotkey))
+//                        cbf.delete(nohotkey);
+//                }
+//            });
         }
     }
 

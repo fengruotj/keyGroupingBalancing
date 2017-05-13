@@ -11,8 +11,8 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.Map;
-import static com.basic.storm.Constraints.*;
 
 
 /**
@@ -23,8 +23,6 @@ public class PredictorBolt extends BaseRichBolt {
     private OutputCollector collector;
     private PredictorHotKeyUtil predictorHotKeyUtil=PredictorHotKeyUtil.getPredictorHotKeyUtilInstance();
     private static Logger logger= LoggerFactory.getLogger(PredictorBolt.class);
-    private long dumpKeyCount=0L;
-    private int dumpsize= (int) (1/Threshold_p);
     public void prepare(Map conf, TopologyContext context, OutputCollector collector) {
         this.collector = collector;
     }
@@ -34,25 +32,16 @@ public class PredictorBolt extends BaseRichBolt {
         Integer count = tuple.getIntegerByField("coincount");
 
         predictorHotKeyUtil.PredictorHotKey(word,count);
-        dumpKeyCount++;
 
         if(predictorHotKeyUtil.isHotKey(word))
             collector.emit(new Values(word,1));
 
-        if(dumpKeyCount==dumpsize){
-            //dump
-            long startTimeSystemTime= System.currentTimeMillis();
-            predictorHotKeyUtil.SynopsisHashMapDump(new DumpRemoveHandler() {
-                @Override
-                public void dumpRemove(String key) {
-                    collector.emit(new Values(word,1));
-                }
-            });
-            long endTimeSystemTime = System.currentTimeMillis();
-            long timelong = (endTimeSystemTime-startTimeSystemTime);
-            logger.debug("totalTime:"+timelong+" ms");
-            dumpKeyCount=0;
-        }
+        predictorHotKeyUtil.SynopsisHashMapAllDump(new DumpRemoveHandler() {
+            @Override
+            public void dumpRemove(String key) {
+                collector.emit(new Values(word,1));
+            }
+        });
 
         collector.ack(tuple);
     }

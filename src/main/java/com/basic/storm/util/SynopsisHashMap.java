@@ -93,13 +93,13 @@ public class SynopsisHashMap<K,V>
 
     public K getrandomkey() {
 	  int i;
-	  Entry<K,V> e;
+	  Entry<K,V> e = null;
 	  Random rand =new Random();
-	  i=rand.nextInt(table.length);
-	  e = table[i];
-      if(e != null)
+	  while (e==null) {
+          i = rand.nextInt(table.length);
+          e = table[i];
+      }
 	    return e.key;
-      return null;
 	}
 
     private V getForNullKey() {
