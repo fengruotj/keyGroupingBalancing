@@ -2,6 +2,7 @@ package com.basic.storm.benchmark;
 
 import com.basic.storm.model.HotKeyMapSize;
 import com.basic.storm.util.DataBaseUtil;
+import com.basic.storm.util.FileUtil;
 import com.basic.storm.util.PredictorHotKeyUtilBenchMark;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -15,6 +16,7 @@ import java.sql.Timestamp;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * locate com.basic.storm.benchmark
@@ -42,15 +44,16 @@ public class PredictHotKeyUpdateTimeBenchMark {
         predictorHotKeyUtil.setStartTimeSystemTime(startTimeSystemTime);
         long endTimeSystemTime = 0L;
         long tupleCount = 0L;
+        FileUtil.deleteFile("D://HotKeyUpdateTime.txt");
 
-//        //设置计时器每500ms计算时间
-//        timer.scheduleAtFixedRate(new TimerTask() {
-//            public void run() {
-//                int size = predictorHotKeyUtil.getPredictHotKeyMap().size();
-//                int length = predictorHotKeyUtil.getPredictHotKeyMap().getLength();
-//                hotKeyMapSizes.add(new HotKeyMapSize(size,length));
-//            }
-//        }, 1,1000);// 设定指定的时间time,此处为1000毫秒
+        //设置计时器每500ms计算时间
+        timer.scheduleAtFixedRate(new TimerTask() {
+            public void run() {
+                int size = predictorHotKeyUtil.getPredictHotKeyMap().size();
+                int length = predictorHotKeyUtil.getPredictHotKeyMap().getLength();
+                hotKeyMapSizes.add(new HotKeyMapSize(size,length));
+            }
+        }, 1,1000);// 设定指定的时间time,此处为1000毫秒
 
         String text = null;
         while ((text = bufferedReader.readLine()) != null) {
@@ -63,6 +66,7 @@ public class PredictHotKeyUpdateTimeBenchMark {
         long timelong = (endTimeSystemTime - startTimeSystemTime) / 1000;
         LOG.info("totalTime:" + timelong + " s" + "------or------" + timelong / 60 + " min");
         LOG.info("tupleCount: " + tupleCount + " avg: " + tupleCount / timelong);
+        timer.cancel();//cancel Timer
 
         predictorHotKeyUtil.outputKeyUpdateTimesQueue();
         LOG.info("ExecutorService run over");
@@ -76,7 +80,6 @@ public class PredictHotKeyUpdateTimeBenchMark {
             preparedStatement.setInt(2,poll.getTablelength());
             preparedStatement.executeUpdate();
         }
-        connection.commit();
         preparedStatement.close();
         LOG.info("DataBaseService run over");
         System.exit(0);

@@ -6,6 +6,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.bloom.CountingBloomFilter;
 import org.apache.hadoop.util.bloom.Key;
+
+import java.io.File;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -332,15 +334,19 @@ public class PredictorHotKeyUtilBenchMark implements Serializable{
         this.executor = executor;
     }
 
-    public void outputKeyUpdateTimesQueue() throws InterruptedException {
+    public void outputKeyUpdateTimesQueue() throws Exception {
+//        while (!keyUpdateTimes.isEmpty()){
+//            HotKeyUpdateTimeTask task=new HotKeyUpdateTimeTask(keyUpdateTimes.poll());
+//            executor.execute(task);
+//        }
+//        predictorHotKeyUtil.getExecutor().shutdown();
+//        //判断是否所有的线程已经运行完
+//        while (!predictorHotKeyUtil.getExecutor().isTerminated()) {
+//            Thread.sleep(10);
+//        }
         while (!keyUpdateTimes.isEmpty()){
-            HotKeyUpdateTimeTask task=new HotKeyUpdateTimeTask(keyUpdateTimes.poll());
-            executor.execute(task);
-        }
-        predictorHotKeyUtil.getExecutor().shutdown();
-        //判断是否所有的线程已经运行完
-        while (!predictorHotKeyUtil.getExecutor().isTerminated()) {
-            Thread.sleep(10);
+            HotKeyUpdateTime poll = keyUpdateTimes.poll();
+            FileUtil.writeAppendTxtFile(new File("D://HotKeyUpdateTime.txt"),poll.getHotkey()+"\t"+poll.getUpdateTime()+"\t"+poll.getTimestamp()+"\n");
         }
     }
 

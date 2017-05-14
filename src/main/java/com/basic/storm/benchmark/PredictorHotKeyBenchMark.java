@@ -68,6 +68,7 @@ public class PredictorHotKeyBenchMark {
         //double totalDelayTime = predictorHotKeyUtil.getTotalDelayTime();
         //long totalKeyCount=predictorHotKeyUtil.getTotalKeyCount();
         //LOG.info("TotalDelayTime: "+totalDelayTime+" avg: "+totalDelayTime/totalKeyCount);
+        timer.cancel();//cancel Timer
 
         String sql="insert INTO t_predicthotkey(keysize,tablelength) VALUES(?,?)";
         Connection connection = dataBaseUtil.getConnection();
