@@ -34,7 +34,7 @@ public class DataBaseUtil {
     public static DataBaseUtil getDataBaseUtilInstance(){
         if(null == dataBaseUtil)
         {
-            synchronized (PredictorHotKeyUtil.class)
+            synchronized (DataBaseUtil.class)
             {
                 dataBaseUtil=new DataBaseUtil();
             }
